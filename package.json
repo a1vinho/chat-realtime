@@ -1,0 +1,15 @@
+{
+  "name": "chat-realtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servidor HTTP Express com WebSocket usando ws",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --watch server.js"
+  },
+  
+  "dependencies": {
+    "express": "^5.1.0",
+    "ws": "^8.18.3"
+  }
+}

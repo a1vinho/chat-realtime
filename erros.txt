@@ -1,0 +1,5 @@
+- Aprimorar o sistema de notificação
+- Criar o sistema anti-flood 
+- Criar o sistema de upload de arquivos entre os usuários.
+
+- Deixa o sistema responsivo o maximo possivel.
