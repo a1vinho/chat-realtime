@@ -3,6 +3,7 @@ const { createServer } = require("node:http");
 const { WebSocketServer, WebSocket } = require("ws");
 const path = require('path');
 const { randomUUID } = require('crypto');
+const fs = require('fs');
 
 const app = express();
 const server = createServer(app);
@@ -15,6 +16,8 @@ app.disable("x-powered-by");
 const users = new Map();
 const messagens = [];
 const sockets = new Map();
+
+const ext_imgs = [".jpeg",".png"];
 
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (_request, response) => {
@@ -30,7 +33,7 @@ websocketServer.on("connection", (connection) => {
     switch (json.event) {
       case "username": {
         let user = users.get(json.username);
-          console.log({username:user})
+        console.log({ username: user })
         if (user) {
           connection.send(JSON.stringify({
             event: 'message',
@@ -39,13 +42,13 @@ websocketServer.on("connection", (connection) => {
           return;
         }
         const id = randomUUID().substring(20);
-
+        connection.id = id;
         users.set(json.username, {
           id,
           username: json.username,
           notifications: []
         });
-        sockets.set(id,connection);
+        sockets.set(id, connection);
         connection.send(JSON.stringify({
           event: "sucess-login",
           ok: true,
@@ -53,17 +56,12 @@ websocketServer.on("connection", (connection) => {
         }));
 
         users.forEach(user => {
+          user.notifications.push({
+            username: json.username,
+            message: `Usuário ${json.username} entrou no chat`
+          });
 
-          const not = user.notifications.find(d => {console.log(d)});
-          if (!not) {
-
-            user.notifications.push({
-              username: json.username,
-              message:`Usuário ${json.username} entrou no chat`
-            });
-          }
-
-
+          console.log(user.notifications)
 
           for (const client of websocketServer.clients) {
             if (client.id && client.id === user.id) {
@@ -147,6 +145,29 @@ websocketServer.on("connection", (connection) => {
           };
         };
       };
+      case "upload-chunk": {
+        // termina o sistema de upload 
+        console.log(json)
+        const ext = path.extname(json.name_file);
+        
+        if (ext_imgs.includes(ext)) {
+          
+          for (const client of websocketServer.clients) {
+            client.send(JSON.stringify({
+              event: "file",
+              file: `<img src=${json.file.join('')}>`
+            }))
+          };
+          return;
+        };
+        const write = fs.createWriteStream(`uploads/${json.id}-${Date.now()}`);
+        for (const chunk of json.file) {
+          write.write(chunk);
+        }
+        write.on('error',err => console.log(err));
+        write.end();
+        break;
+      }
     };
   });
 

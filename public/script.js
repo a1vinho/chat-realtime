@@ -7,8 +7,59 @@
     const input_message = form_message.querySelector('input');
     const container_messagens = document.querySelector('.container-messagens');
 
-    const length_notification = document.querySelector('.notification-length')
     const container_notifications = document.querySelector('.container-notifications');
+    const notification_button = document.getElementById('notification-button');
+
+    function CreateNotification(json) {
+        for (const notification of json.notifications) {
+            const notification_container = document.createElement('div');
+            notification_container.classList.add('notification');
+            const notification_icon = document.createElement('div');
+            const button_close = document.createElement('button');
+            button_close.classList.add('notification-close');
+
+            button_close.innerHTML = '&times;';
+            notification_icon.classList.add('notification-icon');
+            notification_icon.innerHTML = `  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <line x1="19" y1="8" x2="19" y2="14"></line>
+                                <line x1="22" y1="11" x2="16" y2="11"></line>
+                            </svg>`;
+            const notification_text = document.createElement('p');
+            notification_text.classList.add('notification-text')
+            notification_text.innerHTML = `${notification.message}`
+
+            notification_container.appendChild(notification_icon);
+            notification_container.appendChild(notification_text);
+            notification_container.appendChild(button_close);
+            container_notifications.appendChild(notification_container);
+
+            button_close.addEventListener('click', () => {
+                notification_container.style.display = 'none';
+            });
+        }
+
+    }
+
+    function ViewNotifications() {
+        const notifications = container_notifications.querySelectorAll('.notification');
+
+        if (notifications.length > 0) {
+            for (const notification of notifications) {
+                notification.style.display = 'flex';
+            }
+        };
+        if (notifications.length === 0 && localStorage.getItem('notifications')) {
+            const notifications = JSON.parse(localStorage.getItem('notifications'));
+            CreateNotification({ notifications });
+        }
+    }
+
+    notification_button.addEventListener('click', ViewNotifications);
+
     form_message.addEventListener('submit', async event => {
         event.preventDefault();
 
@@ -77,12 +128,14 @@
         const json = JSON.parse(data.data);
         switch (json.event) {
             case "sucess-login": {
+                console.log(json)
                 if (json.ok) {
                     login_container.style.display = 'none';
                     chat_container.style.display = 'flex';
 
                     localStorage.setItem('id', json.user.id);
                     localStorage.setItem('username', json.user.username);
+                    localStorage.setItem('notifications', JSON.stringify(json.notifications));
                 }
                 break;
             }
@@ -96,7 +149,7 @@
                 const button_close = document.createElement('button');
                 button_close.classList.add('notification-close');
 
-                button_close.textContent = '&times;';
+                button_close.innerHTML = '&times;';
                 notification_icon.classList.add('notification-icon');
                 notification_icon.innerHTML = `  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -112,7 +165,20 @@
 
                 notification_container.appendChild(notification_icon);
                 notification_container.appendChild(notification_text);
+                notification_container.appendChild(button_close);
                 container_notifications.appendChild(notification_container);
+
+                button_close.addEventListener('click', () => {
+                    notification_container.style.display = 'none';
+                });
+                break;
+            }
+            case "file": {
+                const img_container = document.createElement('div');
+
+                img_container.innerHTML = json.file;
+
+                container_messagens.appendChild(img_container);
                 break;
             }
             case "message": {
@@ -132,4 +198,38 @@
             }))
         }, 50);
     });
+    const file_input = document.getElementById('file-input');
+    function UploadFileWebSocket(event) {
+        const size_chunk = 40 * 1024;
+        const readFile = new FileReader();
+        const file = event.target.files[0];
+        const totalChunks = Math.ceil(file.size / size_chunk);
+
+        console.log({totalChunks})
+
+        socket.send(JSON.stringify({
+            event: "start-upload",
+            username: localStorage.username,
+            file: file.name,
+            size:file.size
+        }));
+
+        if (!file) return;
+       readFile.addEventListener('load', (e) => {
+        const content = e.target.result;
+        const ArrayBuffer = Array.from(content);
+
+        socket.send(JSON.stringify({
+            event: "upload-chunk",
+            file: ArrayBuffer,
+            name_file:file.name,
+            id: localStorage.id,
+            username: localStorage.username
+        }));
+       });
+
+       
+       readFile.readAsDataURL(file);
+    }
+    file_input.addEventListener('change', UploadFileWebSocket);
 })();

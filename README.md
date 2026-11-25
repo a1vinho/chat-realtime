@@ -1,36 +1,46 @@
 # Chat em tempo real
 
-Aplicação de chat em tempo real feita com Node.js, Express e WebSocket (`ws`). O Express entrega a interface web e o servidor WebSocket permite que usuários conectados entrem com um nome, recebam avisos de entrada e troquem mensagens.
+Aplicação de chat em desenvolvimento, criada com Node.js, Express, WebSocket (`ws`), HTML, CSS e JavaScript. O servidor entrega a interface web e mantém uma conexão WebSocket para login por nome, mensagens, notificações e um fluxo experimental de envio de arquivos.
 
-> O projeto está em desenvolvimento. Os dados ficam somente na memória do processo e alguns controles presentes na interface ainda não têm comportamento implementado.
+O projeto é um protótipo: os dados de usuários e notificações ficam na memória do processo, e o envio de arquivos ainda não é um sistema completo de upload.
 
-## Funcionalidades atuais
+## Funcionalidades
 
-- Interface web em português, servida pelo Express.
-- Conexão WebSocket pelo endpoint `/ws`.
-- Login com nome de usuário de pelo menos quatro caracteres.
-- Recusa de nomes que já estejam registrados no processo atual.
-- Envio de mensagens de texto e retransmissão aos clientes conectados.
-- Exibição das mensagens com o nome do autor e horário local.
-- Avisos de entrada de usuários mantidos em memória.
-- Armazenamento local do identificador e do nome do usuário no navegador para tentar restaurar a sessão ao recarregar a página.
-- Layout responsivo básico para telas menores.
+### Implementadas
+
+- Página web servida pelo Express.
+- Conexão WebSocket no caminho `/ws`.
+- Login com nome de usuário de pelo menos quatro caracteres, validado pelo navegador.
+- Recusa de nomes que já existam na lista mantida pelo processo do servidor.
+- Envio e retransmissão de mensagens de texto para os clientes conectados.
+- Exibição das mensagens com nome do remetente e horário local; mensagens do usuário atual recebem alinhamento visual diferente.
+- Avisos quando novos usuários entram, mantidos na memória do servidor.
+- Apresentação dos avisos na interface, com um botão para exibi-los e controles para dispensá-los.
+- Gravação de identificador, nome e dados de notificação no `localStorage` do navegador para uso na tentativa de restaurar a sessão.
+- Interface adaptável a telas menores.
+
+### Parcial ou experimental
+
+- O campo de arquivo inicia um envio pelo WebSocket. Para arquivos `.jpeg` e `.png`, o servidor retransmite aos clientes uma representação de imagem para exibição no chat. Para outras extensões, tenta gravar os dados em `uploads/`.
+- A interface prepara o conteúdo como Data URL, mas o código não implementa uma transferência em blocos completa nem a reconstrução/decodificação dos arquivos genéricos. O evento `start-upload` também não tem tratamento no servidor.
+- Não há persistência de usuários, mensagens ou notificações em banco de dados.
 
 ## Tecnologias
 
-- [Node.js](https://nodejs.org/)
-- [Express](https://expressjs.com/) — entrega os arquivos estáticos da interface.
-- [ws](https://github.com/websockets/ws) — servidor e conexão WebSocket.
-- HTML, CSS e JavaScript no navegador, sem etapa de compilação.
+- [Node.js](https://nodejs.org/) — ambiente de execução.
+- [Express](https://expressjs.com/) — entrega os arquivos estáticos e a página principal.
+- [ws](https://github.com/websockets/ws) — servidor e cliente WebSocket.
+- HTML, CSS e JavaScript — interface, sem etapa de compilação.
 
 ## Requisitos
 
-- Node.js e npm instalados.
-- Um navegador moderno.
+- Node.js 18 ou superior.
+- npm.
+- Navegador moderno com suporte a WebSocket e `localStorage`.
 
 ## Instalação e execução
 
-Na pasta do projeto, instale as dependências:
+Na raiz do projeto, instale as dependências:
 
 ```sh
 npm install
@@ -42,38 +52,46 @@ Inicie o servidor:
 npm start
 ```
 
-O script de inicialização usa `node --watch server.js`, portanto o servidor reinicia quando o arquivo do servidor é alterado. Abra `http://localhost:3000` no navegador. A porta padrão é `3000`; ela pode ser alterada definindo a variável de ambiente `PORT`.
+O comando executa `node --watch server.js`, reiniciando o servidor quando o arquivo `server.js` muda. Acesse:
 
-Por exemplo, no Linux ou macOS:
+```text
+http://localhost:3000
+```
+
+A porta padrão é `3000`. Para escolher outra porta no Linux ou macOS:
 
 ```sh
 PORT=4000 npm start
 ```
 
+O diretório `uploads/` precisa existir para que o servidor possa gravar os arquivos que não sejam tratados como imagens. O código atual não cria esse diretório automaticamente.
+
 ## Como usar
 
 1. Abra a aplicação no navegador.
 2. Informe um nome de usuário com pelo menos quatro caracteres e selecione **Continuar**.
-3. Após o login, a tela do chat é exibida.
-4. Digite uma mensagem no campo de texto e selecione **Enviar**.
-5. As mensagens recebidas aparecem na área do chat; as próprias mensagens são visualmente diferenciadas das mensagens de outros usuários.
+3. Após o login, o chat é exibido.
+4. Digite uma mensagem e selecione **Enviar** para retransmiti-la aos clientes conectados.
+5. Use o botão de sino para exibir as notificações disponíveis. Cada notificação pode ser dispensada na interface.
+6. O seletor de arquivo inicia o fluxo experimental descrito acima.
 
-Para conversar entre navegadores ou dispositivos, todos devem acessar o mesmo servidor. O nome de usuário deve ser único entre os usuários registrados naquele processo do servidor.
+Para conversar entre navegadores ou dispositivos, todos devem acessar a mesma instância do servidor. Os nomes de usuário são verificados somente contra os dados presentes na memória desse processo.
 
 ## Endpoints
 
-| Tipo | Endereço | Descrição |
+| Tipo | Caminho | Descrição |
 | --- | --- | --- |
 | HTTP | `GET /` | Entrega a página principal. |
-| WebSocket | `/ws` | Conexão em tempo real usada para login, notificações e mensagens. |
+| Estático | `/style.css`, `/script.js` | Arquivos da interface servidos a partir de `public/`. |
+| WebSocket | `/ws` | Canal de login, mensagens, notificações e envio experimental de arquivos. |
 
-Em desenvolvimento local, o endereço WebSocket é `ws://localhost:3000/ws`. O cliente constrói o endereço usando o host da página.
+Em desenvolvimento local, o endereço WebSocket é `ws://localhost:3000/ws`. O navegador deriva o host do endereço da página.
 
 ## Protocolo WebSocket
 
-As mensagens de aplicação são enviadas como JSON e incluem um campo `event`.
+As mensagens de aplicação são JSON com um campo `event`. Os exemplos abaixo resumem os eventos utilizados pelo cliente e pelo servidor.
 
-### Eventos enviados pelo navegador
+### Eventos enviados pelo cliente
 
 **Login**
 
@@ -84,11 +102,7 @@ As mensagens de aplicação são enviadas como JSON e incluem um campo `event`.
 }
 ```
 
-O navegador valida que o nome tenha ao menos quatro caracteres antes do envio. O servidor verifica se o nome já está registrado.
-
-**Tentativa de restaurar a sessão**
-
-Ao carregar a página, o cliente envia os dados gravados no `localStorage`:
+**Tentativa de restaurar a sessão ao carregar a página**
 
 ```json
 {
@@ -109,13 +123,18 @@ Ao carregar a página, o cliente envia os dados gravados no `localStorage`:
 }
 ```
 
+**Envio experimental de arquivo**
+
+O navegador envia primeiro um evento `start-upload` e depois um evento `upload-chunk`, cujo campo `file` contém os caracteres da Data URL. No momento, o servidor não trata `start-upload` e processa o conteúdo de `upload-chunk` em uma única mensagem; portanto, o nome “chunk” não representa uma transferência em blocos concluída.
+
 ### Eventos enviados pelo servidor
 
-- `sucess-login`: resposta de sucesso do login ou da tentativa de restauração. O nome do evento está escrito assim no protocolo atual.
-- `notification`: contém a lista de avisos de entrada associados ao usuário.
-- `message`: usado tanto para mensagens do chat (com os dados da mensagem) quanto para alguns avisos em texto, como nome já em uso.
+- `sucess-login`: resposta de sucesso do login ou da tentativa de restauração. O nome está grafado assim no protocolo atual. A resposta pode conter `user` e, no fluxo de restauração, `notifications`.
+- `notification`: lista de avisos de entrada associada a um usuário.
+- `message`: conteúdo de uma mensagem de chat, enviado com os dados do remetente, texto e data.
+- `file`: conteúdo destinado à exibição de uma imagem enviada. Esse fluxo é experimental.
 
-Uma mensagem do chat contém o usuário associado, o texto e a data em milissegundos desde a época Unix:
+Exemplo de mensagem de chat:
 
 ```json
 {
@@ -131,29 +150,33 @@ Uma mensagem do chat contém o usuário associado, o texto e a data em milissegu
 }
 ```
 
+O campo `date` representa milissegundos desde a época Unix. O cliente formata esse valor usando o horário local do navegador.
+
 ## Estrutura do projeto
 
 ```text
 .
 ├── public/
 │   ├── index.html   # Estrutura da página de login e do chat
-│   ├── script.js    # Conexão WebSocket e comportamento da interface
-│   └── style.css    # Estilos da interface
-├── package.json     # Dependências e comandos npm
+│   ├── script.js    # Eventos da interface e comunicação WebSocket
+│   └── style.css    # Estilos e regras responsivas
+├── uploads/         # Destino esperado para gravação de alguns arquivos
+├── package.json     # Dependências e comando de inicialização
 ├── package-lock.json
-└── server.js        # Servidor Express e tratamento dos eventos WebSocket
+└── server.js        # Servidor Express e eventos WebSocket
 ```
 
-## Estado e limitações conhecidas
+## Estado, limitações e segurança
 
-- Usuários, notificações e mensagens são mantidos em estruturas na memória do servidor. Reiniciar o processo apaga esses dados.
-- O registro de usuários não é persistido em banco de dados.
-- A restauração depende dos dados locais do navegador e do estado em memória do servidor; não há autenticação baseada em credenciais.
-- O cliente não implementa uma estratégia de reconexão automática caso a conexão WebSocket caia.
-- O campo de seleção de imagem está presente na interface, mas o envio de arquivos ainda não está implementado.
-- O botão de notificações está presente, mas a interface ainda não implementa sua abertura, fechamento ou gerenciamento.
-- O projeto é um protótipo em desenvolvimento, não um serviço pronto para produção.
+- Usuários, notificações e mensagens existem somente na memória; reiniciar o servidor os remove. O histórico de mensagens não é enviado a quem entra posteriormente.
+- A restauração depende tanto dos dados no `localStorage` quanto do estado ainda existente no servidor; não há contas, senhas ou autenticação persistente.
+- A conexão do cliente usa `ws://`; para uso público, seria necessário servir a aplicação com HTTPS e usar uma conexão WebSocket segura (`wss://`).
+- O servidor espera mensagens JSON válidas e ainda não possui tratamento abrangente de payloads inválidos, limites de tamanho ou validação de entrada para todos os eventos.
+- O fluxo de upload é experimental: não há fragmentação real, validação completa de tipo/conteúdo, persistência organizada nem tratamento abrangente de erros. Não o utilize para arquivos sensíveis ou em um serviço público.
+- A página não possui reconexão automática em caso de queda do WebSocket.
+- O tratamento de respostas de erro no cliente ainda é limitado.
+- O modo `--watch` é voltado ao desenvolvimento; não há configuração de implantação ou monitoramento para produção.
 
 ## Desenvolvimento
 
-O servidor reinicia automaticamente ao detectar alterações em `server.js` devido ao modo `--watch`. Arquivos da interface ficam em `public/` e são servidos estaticamente pelo Express.
+Os arquivos estáticos ficam em `public/`. O servidor usa o modo de observação nativo do Node.js para reiniciar quando `server.js` é alterado. As dependências e o comando de inicialização estão declarados em `package.json`.
